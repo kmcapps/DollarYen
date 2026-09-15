@@ -11,13 +11,13 @@ header { display: flex; align-items: center; justify-content: space-between; }.a
 button:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
 @media (max-width: 639px) {
   .app-shell { display: block; padding: 0; }
-  .calculator-card { display: flex; min-height: 100dvh; margin: 0; padding: calc(18px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left)); border-radius: 0; box-shadow: none; flex-direction: column; }
+  .calculator-card { display: grid; min-height: 100dvh; margin: 0; padding: calc(18px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left)); border-radius: 0; box-shadow: none; align-content: start; }
   .app-header { margin-bottom: 16px; }
   .amount-display { gap: 12px; }
   .currency-output { padding: 22px 20px; }
   .usd-amount, .jpy-amount { font-size: clamp(1.9rem, 10vw, 2.4rem); }
   .rate-status { margin-top: 4px; padding: 14px 16px; }
-  .keypad { gap: 12px; margin-top: auto; padding-top: 20px; }
+  .keypad { gap: 12px; margin-top: 0; padding-top: 20px; }
   .keypad button { min-height: clamp(68px, 10dvh, 84px); font-size: 1.35rem; }
 }
 @media (min-width: 640px) { .app-shell { padding: calc(40px + env(safe-area-inset-top)) calc(40px + env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) calc(40px + env(safe-area-inset-left)); }.calculator-card { padding: 32px; }.keypad { gap: 12px; } }
