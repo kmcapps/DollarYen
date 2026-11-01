@@ -135,6 +135,8 @@ test('shows symbol-only amounts followed by the keypad and rate details', () => 
   const keypad = screen.getByLabelText('金額キーパッド')
   expect(usd.compareDocumentPosition(jpy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(jpy.compareDocumentPosition(keypad) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(keypad.compareDocumentPosition(header) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(header.compareDocumentPosition(rateDetails) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(keypad.compareDocumentPosition(rateDetails) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(screen.queryByText('USD', { exact: true })).not.toBeInTheDocument()
   expect(screen.queryByText('JPY', { exact: true })).not.toBeInTheDocument()
@@ -164,14 +166,15 @@ test('converts the live USD sum before equals and supports continued addition', 
   expect(screen.getByLabelText('日本円金額')).toHaveTextContent('¥5,259')
 })
 
-test('adds amounts using the on-screen plus and equals controls', async () => {
+test('adds amounts using the on-screen plus control without an equals button', async () => {
   const user = userEvent.setup()
   render(<AppView rateController={controller({ kind: 'online', rate })} />)
-  for (const key of ['1', '0', '足す', '2', '0', '合計']) {
+  for (const key of ['1', '0', '足す', '2', '0']) {
     await user.click(screen.getByRole('button', { name: key }))
   }
   expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$30')
   expect(screen.getByLabelText('日本円金額')).toHaveTextContent('¥4,508')
+  expect(screen.queryByRole('button', { name: '合計' })).not.toBeInTheDocument()
 })
 
 test('starts fresh after equals but continues the total when plus is pressed', async () => {
@@ -212,7 +215,7 @@ test('explains total overflow and allows correcting the current operand', async 
   const user = userEvent.setup()
   render(<AppView rateController={controller({ kind: 'online', rate })} />)
   await user.keyboard('999999999999.98+0.02')
-  expect(screen.getByRole('status', { name: '入力のお知らせ' })).toHaveTextContent('合計は999,999,999,999.99 USDまでです')
+  expect(screen.getByRole('status', { name: '入力のお知らせ' })).toHaveTextContent('合計は±999,999,999,999.99 USDまでです')
   expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$999,999,999,999.98')
   await user.keyboard('1=')
   expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$999,999,999,999.99')
@@ -241,4 +244,36 @@ test('keeps native Enter activation for a focused keypad button', async () => {
   await user.keyboard('{Enter}')
   expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$0')
   expect(screen.queryByLabelText('米ドルの計算式')).not.toBeInTheDocument()
+})
+
+test('subtracts using the keypad and converts the difference before equals', async () => {
+  const user = userEvent.setup()
+  render(<AppView rateController={controller({ kind: 'online', rate })} />)
+  for (const key of ['1', '0', '引く', '3']) await user.click(screen.getByRole('button', { name: key }))
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$7')
+  expect(screen.getByLabelText('日本円金額')).toHaveTextContent('¥1,052')
+  expect(screen.getByLabelText('米ドルの計算式')).toHaveTextContent('10 - 3')
+})
+
+test('shows negative USD and JPY amounts and continues mixed arithmetic', async () => {
+  const user = userEvent.setup()
+  render(<AppView rateController={controller({ kind: 'online', rate })} />)
+  await user.keyboard('10-20=')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('-$10')
+  expect(screen.getByLabelText('日本円金額')).toHaveTextContent('-¥1,503')
+  await user.keyboard('+5=')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('-$5')
+  expect(screen.getByLabelText('日本円金額')).toHaveTextContent('-¥751')
+})
+
+test('preserves the full expression while adding and subtracting multiple amounts', async () => {
+  const user = userEvent.setup()
+  render(<AppView rateController={controller({ kind: 'online', rate })} />)
+  for (const key of ['1', '足す', '1', '足す', '1']) await user.click(screen.getByRole('button', { name: key }))
+  expect(screen.getByLabelText('米ドルの計算式')).toHaveTextContent('1 + 1 + 1')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$3')
+  await user.click(screen.getByRole('button', { name: '引く' }))
+  await user.click(screen.getByRole('button', { name: '2' }))
+  expect(screen.getByLabelText('米ドルの計算式')).toHaveTextContent('1 + 1 + 1 - 2')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$1')
 })

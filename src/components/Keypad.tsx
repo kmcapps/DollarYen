@@ -10,6 +10,7 @@ function actionForKey(key: string): CalculatorAction | null {
   if (/^[0-9]$/.test(key)) return { type: 'digit', digit: key as Digit }
   if (key === '.') return { type: 'decimal' }
   if (key === '+') return { type: 'add' }
+  if (key === '-') return { type: 'subtract' }
   if (key === '=' || key === 'Enter') return { type: 'equals' }
   if (key === 'Backspace' || key === 'Delete') return { type: 'backspace' }
   if (key === 'Escape' || key.toLowerCase() === 'c') return { type: 'clear' }
@@ -40,6 +41,6 @@ export function Keypad({ onAction }: KeypadProps) {
     <button className="add-key" type="button" aria-label="足す" onClick={() => onAction({ type: 'add' })}>＋</button>
     <button className="zero-key" type="button" onClick={() => onAction({ type: 'digit', digit: '0' })}>0</button>
     <button type="button" aria-label="小数点" onClick={() => onAction({ type: 'decimal' })}>.</button>
-    <button className="equals-key" type="button" aria-label="合計" onClick={() => onAction({ type: 'equals' })}>＝</button>
+    <button className="subtract-key" type="button" aria-label="引く" onClick={() => onAction({ type: 'subtract' })}>−</button>
   </section>
 }

@@ -7,6 +7,15 @@ describe("convertUsdToRoundedJpy", () => {
   });
 
   it.each([
+    ["10", 150.25, 1503],
+    ["-10", 150.25, -1503],
+    ["-0.01", 150.25, -2],
+    ["-0.01", 1, 0],
+  ])("rounds signed amount %s at %s symmetrically to %s yen", (amount, rate, expected) => {
+    expect(convertUsdToRoundedJpy(amount, rate)).toBe(expected);
+  });
+
+  it.each([
     ["", 154.31],
     ["not-a-number", 154.31],
     ["100", Number.POSITIVE_INFINITY],

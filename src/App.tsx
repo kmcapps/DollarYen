@@ -11,9 +11,9 @@ export function AppView({ rateController }: { rateController: ExchangeRateContro
 
   return <main className="app-shell">
     <section className="calculator-card" aria-labelledby="app-title">
-      <header className="app-header" role="banner" aria-busy={rateController.state.kind === 'loading'}><h1 id="app-title">DollarYen</h1><RateSummary state={rateController.state} /></header>
       <AmountDisplay {...display} rate={rateController.state.rate} />
       <Keypad onAction={dispatch} />
+      <header className="app-header" role="banner" aria-busy={rateController.state.kind === 'loading'}><h1 id="app-title">DollarYen</h1><RateSummary state={rateController.state} /></header>
       <RateStatus state={rateController.state} refresh={rateController.refresh} />
     </section>
   </main>

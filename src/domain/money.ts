@@ -4,7 +4,9 @@ export function convertUsdToRoundedJpy(value: string, rate: number): number {
     return 0;
   }
 
-  return Math.round(amount * rate);
+  const yen = amount * rate;
+  const rounded = Math.round(Math.abs(yen));
+  return yen < 0 && rounded !== 0 ? -rounded : rounded;
 }
 
 export function formatJpyInteger(value: number): string {

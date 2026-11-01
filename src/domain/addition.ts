@@ -1,42 +1,55 @@
 import { formatUsdInput, reduceAmount, type AmountAction } from './amountInput'
 
-export type CalculatorAction = AmountAction | { type: 'add' } | { type: 'equals' }
+type Operation = 'add' | 'subtract'
+export type CalculatorAction = AmountAction | { type: 'add' } | { type: 'subtract' } | { type: 'equals' }
 
 interface CalculatorState {
   entry: string
   subtotalCents: number | null
-  phase: 'entry' | 'adding' | 'result'
+  phase: 'entry' | 'operator' | 'result'
+  operation: Operation
+  expressionPrefix: string
   completedExpression: string | null
   error: string | null
 }
 
 export const initialCalculatorState: CalculatorState = {
-  entry: '0', subtotalCents: null, phase: 'entry', completedExpression: null, error: null,
+  entry: '0', subtotalCents: null, phase: 'entry', operation: 'add', expressionPrefix: '', completedExpression: null, error: null,
 }
 
 const MAX_TOTAL_CENTS = 99_999_999_999_999
 
 // Split the decimal string before arithmetic so 0.1 + 0.2 is exactly 30 cents.
 function toCents(amount: string): number {
-  const [integer, fraction = ''] = amount.split('.')
-  return Number(integer) * 100 + Number(fraction.padEnd(2, '0'))
+  const negative = amount.startsWith('-')
+  const [integer, fraction = ''] = (negative ? amount.slice(1) : amount).split('.')
+  const cents = Number(integer) * 100 + Number(fraction.padEnd(2, '0'))
+  return negative ? -cents : cents
 }
 
 function fromCents(cents: number): string {
-  const integer = Math.floor(cents / 100)
-  const fraction = cents % 100
-  return fraction === 0 ? String(integer) : `${integer}.${String(fraction).padStart(2, '0').replace(/0$/, '')}`
+  const absolute = Math.abs(cents)
+  const integer = Math.floor(absolute / 100)
+  const fraction = absolute % 100
+  const amount = fraction === 0 ? String(integer) : `${integer}.${String(fraction).padStart(2, '0').replace(/0$/, '')}`
+  return cents < 0 ? `-${amount}` : amount
+}
+
+function formatSignedAmount(amount: string): string {
+  return amount.startsWith('-') ? `-${formatUsdInput(amount.slice(1))}` : formatUsdInput(amount)
 }
 
 function totalCents(state: CalculatorState): number {
   if (state.subtotalCents === null) return toCents(state.entry)
-  return state.subtotalCents + (state.phase === 'adding' ? 0 : toCents(state.entry))
+  if (state.phase === 'operator') return state.subtotalCents
+  const operand = toCents(state.entry)
+  return state.operation === 'subtract' ? state.subtotalCents - operand : state.subtotalCents + operand
 }
 
 export function getCalculatorDisplay(state: CalculatorState) {
   const expression = state.subtotalCents === null
     ? state.completedExpression
-    : `${formatUsdInput(fromCents(state.subtotalCents))} +${state.phase === 'entry' ? ` ${formatUsdInput(state.entry)}` : ''}`
+    : `${state.expressionPrefix} ${state.operation === 'subtract' ? '-' : '+'}${state.phase === 'entry' ? ` ${formatSignedAmount(state.entry)}` : ''}`
 
   return {
     amount: state.subtotalCents === null ? state.entry : fromCents(totalCents(state)),
@@ -48,31 +61,37 @@ export function getCalculatorDisplay(state: CalculatorState) {
 export function reduceCalculator(state: CalculatorState, action: CalculatorAction): CalculatorState {
   if (action.type === 'clear') return initialCalculatorState
 
-  if (action.type === 'add') {
-    if (state.phase === 'adding') return state
+  if (action.type === 'add' || action.type === 'subtract') {
+    if (state.phase === 'operator') return { ...state, operation: action.type, error: null }
     const total = totalCents(state)
-    return { entry: fromCents(total), subtotalCents: total, phase: 'adding', completedExpression: null, error: null }
+    const expressionPrefix = state.subtotalCents === null
+      ? formatSignedAmount(state.entry)
+      : getCalculatorDisplay(state).expression!
+    return { entry: fromCents(total), subtotalCents: total, phase: 'operator', operation: action.type, expressionPrefix, completedExpression: null, error: null }
   }
 
   if (action.type === 'equals') {
     if (state.phase === 'result') return state
     const expression = state.subtotalCents !== null && state.phase === 'entry'
       ? `${getCalculatorDisplay(state).expression} =` : null
-    return { entry: fromCents(totalCents(state)), subtotalCents: null, phase: 'result', completedExpression: expression, error: null }
+    return { ...initialCalculatorState, entry: fromCents(totalCents(state)), phase: 'result', completedExpression: expression }
   }
 
-  if (action.type === 'backspace' && state.phase === 'adding') {
+  if (action.type === 'backspace' && state.phase === 'operator') {
     return { ...initialCalculatorState, entry: state.entry }
   }
 
   const startsFresh = state.phase === 'result' && action.type !== 'backspace'
   const base = startsFresh ? initialCalculatorState : state
-  const currentEntry = base.phase === 'adding' ? '0' : base.entry
-  const nextEntry = reduceAmount(currentEntry, action).value
+  const currentEntry = base.phase === 'operator' ? '0' : base.entry
+  const negative = currentEntry.startsWith('-')
+  const reduced = reduceAmount(negative ? currentEntry.slice(1) : currentEntry, action).value
+  const nextEntry = negative && reduced !== '0' ? `-${reduced}` : reduced
+  const nextState: CalculatorState = { ...base, entry: nextEntry, phase: 'entry', completedExpression: null, error: null }
 
-  if ((base.subtotalCents ?? 0) + toCents(nextEntry) > MAX_TOTAL_CENTS) {
-    return { ...state, error: '合計は999,999,999,999.99 USDまでです' }
+  if (Math.abs(totalCents(nextState)) > MAX_TOTAL_CENTS) {
+    return { ...state, error: '合計は±999,999,999,999.99 USDまでです' }
   }
 
-  return { ...base, entry: nextEntry, phase: 'entry', completedExpression: null, error: null }
+  return nextState
 }
