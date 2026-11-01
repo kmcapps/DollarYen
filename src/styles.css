@@ -1,6 +1,6 @@
 :root { color: #14233d; background: #edf1f5; font-family: Inter, 'Hiragino Sans', 'Yu Gothic UI', sans-serif; }
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; background: #edf1f5; }
+body { margin: 0; min-width: 0; background: #edf1f5; }
 button { font: inherit; }
 .app-shell { display: grid; min-height: 100dvh; padding: calc(20px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); }
 .calculator-card { width: 100%; max-width: 520px; margin: auto; padding: 28px 20px 20px; background: #fff; border-radius: 18px; box-shadow: 0 10px 28px rgba(21, 42, 72, .12); }
@@ -9,6 +9,20 @@ header { display: flex; align-items: center; justify-content: space-between; }.a
 .keypad { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }.keypad button { min-height: 56px; border: 1px solid #d8e0ea; border-radius: 11px; background: #fff; color: #14233d; font-size: 1.25rem; font-weight: 700; cursor: pointer; transition: background-color .15s ease, transform .15s ease; }.keypad button:hover { background: #edf5ff; }.keypad button:active { transform: translateY(1px); background: #dcecff; }.keypad .clear-key { background: #e8f5ff; border-color: #b9dcf5; }.keypad .clear-key:hover { background: #d9efff; }.keypad .clear-key:active { background: #cce9fb; }.keypad .zero-key { grid-column: 1 / -1; }
 .rate-status { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: center; padding: 16px; border-radius: 12px; background: #f8fafc; color: #475569; font-size: .88rem; }.rate-status > p:not(.rate-notice) { grid-column: 1 / -1; }.rate-status p { margin: 0 0 8px; overflow-wrap: anywhere; }.rate-copy { min-width: 0; }.rate-state { color: #1e3a5f; font-weight: 700; }.state-dot { display: inline-block; width: .6rem; height: .6rem; margin-right: .45rem; border-radius: 50%; background: #14804a; }.rate-summary--loading .state-dot { background: #1976d2; }.rate-summary--cached .state-dot { background: #d97706; }.rate-summary--unavailable .state-dot { background: #dc2626; }.rate-details { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 8px; }.rate-details span { white-space: nowrap; }.refresh-button { min-height: 56px; padding: 0 18px; border: 0; border-radius: 8px; background: #1464bd; color: #fff; font-weight: 700; cursor: pointer; }.refresh-button:disabled { cursor: not-allowed; opacity: .55; }.rate-notice { margin: 0 !important; color: #64748b; font-size: .78rem; }
 button:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+.usd-surface { align-items: center; }
+.jpy-output { justify-content: flex-end; }
+.keypad { margin-top: 20px; }
+.rate-status { margin-top: 20px; grid-template-columns: auto minmax(0, 1fr); }
+.usd-values { flex: 1; min-width: 0; text-align: right; }
+.usd-values .usd-amount { display: block; }
+.usd-expression { display: block; min-height: 1.4em; line-height: 1.4; margin-bottom: 4px; color: #64748b; font-size: .85rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.input-notice { margin: 8px 0 0; color: #9a3412; font-size: .78rem; overflow-wrap: anywhere; }
+.keypad .zero-key { grid-column: span 2; }
+.keypad .add-key { background: #e8f5ff; border-color: #b9dcf5; color: #0d61bd; }
+.keypad .add-key:hover { background: #d9efff; }
+.keypad .equals-key { background: #1464bd; border-color: #1464bd; color: #fff; }
+.keypad .equals-key:hover { background: #0d529f; }
+.keypad .equals-key:active { background: #0b4587; }
 @media (max-width: 639px) {
   .app-shell { display: block; padding: 0; }
   .calculator-card { display: grid; min-height: 100dvh; margin: 0; padding: calc(18px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left)); border-radius: 0; box-shadow: none; align-content: start; }
@@ -16,7 +30,7 @@ button:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
   .amount-display { gap: 12px; }
   .currency-output { padding: 22px 20px; }
   .usd-amount, .jpy-amount { font-size: clamp(1.9rem, 10vw, 2.4rem); }
-  .rate-status { margin-top: 4px; padding: 14px 16px; }
+  .rate-status { margin-top: 20px; padding: 14px 16px; }
   .keypad { gap: 12px; margin-top: 0; padding-top: 20px; }
   .keypad button { min-height: clamp(68px, 10dvh, 84px); font-size: 1.35rem; }
 }

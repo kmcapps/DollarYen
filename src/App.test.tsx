@@ -96,12 +96,12 @@ test('formats a one-decimal API rate with two visible decimal places', () => {
   expect(screen.getByText('1 USD = ¥150.20')).toBeInTheDocument()
 })
 
-test('places the daily-reference notice before the refresh button', () => {
+test('places the refresh button before the daily-reference notice', () => {
   render(<AppView rateController={controller({ kind: 'online', rate })} />)
   const notice = screen.getByText('※ このレートは日次の参考レートであり、取引価格ではありません。')
   const refresh = screen.getByRole('button', { name: '為替レートを更新' })
 
-  expect(notice.compareDocumentPosition(refresh) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(refresh.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(notice.closest('.rate-copy')).not.toBeNull()
   expect(refresh.closest('.rate-copy')).toBeNull()
 })
@@ -124,18 +124,22 @@ test('does not expose an unapproved visible loading label when no rate exists', 
   expect(screen.getByRole('banner')).toHaveAttribute('aria-busy', 'true')
 })
 
-test('orders compact header state, labeled currency surfaces, rate details, then keypad', () => {
+test('shows symbol-only amounts followed by the keypad and rate details', () => {
   render(<AppView rateController={controller({ kind: 'online', rate })} />)
   const header = screen.getByRole('banner')
   expect(header).toHaveTextContent('DollarYen')
   expect(header).toHaveTextContent('オンライン取得済み')
-  const usd = screen.getByText('USD')
-  const jpy = screen.getByText('JPY')
+  const usd = screen.getByLabelText('米ドル金額')
+  const jpy = screen.getByLabelText('日本円金額')
   const rateDetails = screen.getByText('1 USD = ¥150.25')
   const keypad = screen.getByLabelText('金額キーパッド')
   expect(usd.compareDocumentPosition(jpy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  expect(jpy.compareDocumentPosition(rateDetails) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  expect(rateDetails.compareDocumentPosition(keypad) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(jpy.compareDocumentPosition(keypad) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(keypad.compareDocumentPosition(rateDetails) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(screen.queryByText('USD', { exact: true })).not.toBeInTheDocument()
+  expect(screen.queryByText('JPY', { exact: true })).not.toBeInTheDocument()
+  expect(usd).toHaveTextContent('$0')
+  expect(jpy).toHaveTextContent('¥0')
 })
 
 test.each([
@@ -146,4 +150,95 @@ test.each([
   const summary = screen.getByText(copy)
   expect(summary).toHaveAttribute('aria-live', 'polite')
   expect(summary).toHaveClass(`rate-summary--${kind}`)
+})
+
+test('converts the live USD sum before equals and supports continued addition', async () => {
+  const user = userEvent.setup()
+  render(<AppView rateController={controller({ kind: 'online', rate })} />)
+  await user.keyboard('10+20')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$30')
+  expect(screen.getByLabelText('日本円金額')).toHaveTextContent('¥4,508')
+  expect(screen.getByLabelText('米ドルの計算式')).toHaveTextContent('10 + 20')
+  await user.keyboard('+5{Enter}')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$35')
+  expect(screen.getByLabelText('日本円金額')).toHaveTextContent('¥5,259')
+})
+
+test('adds amounts using the on-screen plus and equals controls', async () => {
+  const user = userEvent.setup()
+  render(<AppView rateController={controller({ kind: 'online', rate })} />)
+  for (const key of ['1', '0', '足す', '2', '0', '合計']) {
+    await user.click(screen.getByRole('button', { name: key }))
+  }
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$30')
+  expect(screen.getByLabelText('日本円金額')).toHaveTextContent('¥4,508')
+})
+
+test('starts fresh after equals but continues the total when plus is pressed', async () => {
+  const user = userEvent.setup()
+  render(<AppView rateController={controller({ kind: 'online', rate })} />)
+  await user.keyboard('10+20=+5=')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$35')
+  await user.keyboard('.5')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$0.5')
+  expect(screen.getByLabelText('日本円金額')).toHaveTextContent('¥75')
+})
+
+test('edits an operand, cancels a pending plus, and clears the whole calculation', async () => {
+  const user = userEvent.setup()
+  render(<AppView rateController={controller({ kind: 'online', rate })} />)
+  await user.keyboard('10+25{Backspace}')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$12')
+  await user.keyboard('+{Backspace}3')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$123')
+  await user.click(screen.getByRole('button', { name: 'クリア' }))
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$0')
+  expect(screen.queryByLabelText('米ドルの計算式')).not.toBeInTheDocument()
+  await user.keyboard('5')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$5')
+})
+
+test('keeps addition available without a rate and converts it when a rate arrives', async () => {
+  const user = userEvent.setup()
+  const view = render(<AppView rateController={controller({ kind: 'unavailable', rate: null })} />)
+  await user.keyboard('10+20')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$30')
+  expect(screen.getByLabelText('日本円金額')).toHaveTextContent('—')
+  view.rerender(<AppView rateController={controller({ kind: 'online', rate })} />)
+  expect(screen.getByLabelText('日本円金額')).toHaveTextContent('¥4,508')
+})
+
+test('explains total overflow and allows correcting the current operand', async () => {
+  const user = userEvent.setup()
+  render(<AppView rateController={controller({ kind: 'online', rate })} />)
+  await user.keyboard('999999999999.98+0.02')
+  expect(screen.getByRole('status', { name: '入力のお知らせ' })).toHaveTextContent('合計は999,999,999,999.99 USDまでです')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$999,999,999,999.98')
+  await user.keyboard('1=')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$999,999,999,999.99')
+  expect(screen.queryByRole('status', { name: '入力のお知らせ' })).not.toBeInTheDocument()
+})
+
+test('keeps native Enter activation for the focused rate refresh button', async () => {
+  const user = userEvent.setup()
+  const refresh = vi.fn().mockResolvedValue(undefined)
+  render(<AppView rateController={controller({ kind: 'online', rate }, refresh)} />)
+  await user.keyboard('10+20')
+  await user.tab()
+  expect(screen.getByRole('button', { name: '1' })).toHaveFocus()
+  screen.getByRole('button', { name: '為替レートを更新' }).focus()
+  expect(screen.getByRole('button', { name: '為替レートを更新' })).toHaveFocus()
+  await user.keyboard('{Enter}')
+  expect(refresh).toHaveBeenCalledOnce()
+  expect(screen.getByLabelText('米ドルの計算式')).toHaveTextContent('10 + 20')
+})
+
+test('keeps native Enter activation for a focused keypad button', async () => {
+  const user = userEvent.setup()
+  render(<AppView rateController={controller({ kind: 'online', rate })} />)
+  await user.keyboard('10+20')
+  screen.getByRole('button', { name: 'クリア' }).focus()
+  await user.keyboard('{Enter}')
+  expect(screen.getByLabelText('米ドル金額')).toHaveTextContent('$0')
+  expect(screen.queryByLabelText('米ドルの計算式')).not.toBeInTheDocument()
 })
